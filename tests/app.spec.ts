@@ -52,9 +52,25 @@ test.describe('StageBadger Studio Behavioral User Flows', () => {
     // Assert it snaps back to READY when failing
     await expect(badge).toHaveText('READY');
 
-    // Generate Final UI Screenshot for Git Documentation
+    // 5. Test Depth of Field Toggle
+    const dofToggle = page.locator('label', { hasText: 'Enable AI Depth of Field' }).locator('..').locator('input[type="checkbox"]');
+    
+    // Screenshot 1: DOF Off
+    await expect(dofToggle).not.toBeChecked();
     await page.waitForTimeout(500); // Allow DOM animations to settle
-    await page.screenshot({ path: 'assets/screenshot.png', fullPage: true });
+    await page.screenshot({ path: 'assets/screenshot_dof_off.png', fullPage: true });
+
+    // Toggle DOF On
+    await dofToggle.check();
+    await expect(dofToggle).toBeChecked();
+    
+    // Validate CSS filter logic applied
+    const videoPreview = page.locator('#camera-preview');
+    await expect(videoPreview).toHaveCSS('filter', /contrast/);
+    
+    // Screenshot 2: DOF On
+    await page.waitForTimeout(500); // Allow DOM animations to settle
+    await page.screenshot({ path: 'assets/screenshot_dof_on.png', fullPage: true });
   });
 
 });

@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshot.png" alt="StageBadger Native UI">
+  <img src="assets/screenshot_dof_on.png" alt="StageBadger Native UI - Depth of Field Enabled">
 </p>
 
 ---
@@ -52,6 +52,7 @@ We are building the world's first fully native, AI-integrated, zero-dependency b
 - **Dynamic text overlays** — ASR captions and live chat rendered via `drawtext` with `reload=1` for zero-restart updates
 
 ### AI & Hardware Integration  
+- **Live Depth of Field (AI Background Blur)** — Toggle AI depth of field in real-time. For a production environment on the Apple M4, the recommended architecture for this feature relies on **RVM MobileNetV3 Core ML** (for the best quality open-source model capable of 60fps) or **Apple Vision Person Segmentation + Core Image / Metal blur** (for the safest, lowest-latency M4-native 60fps path). Currently, the UI toggle activates an FFmpeg/CSS proxy as a verified integration placeholder for these robust native AI pathways.
 - **Dual-Model ASR Pipeline** — Supports hardware Whisper integration utilizing GGML matrix scaling arrays via CoreML/Apple Silicon (`mkl`/`metal`).
 - **Live token-level Confidence Visualization** — Deep integrations running on `cpal` extract f32 buffers across macOS audio units natively parsing them to extract token matrices mapping into our front tracking vectors in true real-time.
 - **Model storage on external volumes** — `/Volumes/MOE` mount detection ensures robust asset deployment scaling without clogging OS partitions.

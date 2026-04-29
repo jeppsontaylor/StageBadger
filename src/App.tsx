@@ -30,6 +30,7 @@ export default function App() {
   const [youtubeKey, setYoutubeKey] = useState('');
   const [localRecord, setLocalRecord] = useState(true);
   const [activeOverlay, setActiveOverlay] = useState<string>('');
+  const [dofEnabled, setDofEnabled] = useState(false);
   
   const [isLive, setIsLive] = useState(false);
   const [status, setStatus] = useState<'READY' | 'INITIALIZING' | 'LIVE'>('READY');
@@ -129,7 +130,8 @@ export default function App() {
         cameraId: selectedCamera,
         micId: selectedMic,
         enableRecording: localRecord,
-        overlayPath: activeOverlay
+        overlayPath: activeOverlay,
+        blurBackground: dofEnabled
       });
       setIsLive(true);
       setStatus('LIVE');
@@ -179,6 +181,13 @@ export default function App() {
               {mics.length === 0 ? <option value="0">Detecting...</option> : mics.map((m, i) => <option key={i} value={m}>{m}</option>)}
             </select>
           </div>
+          <div className="checkbox-row" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+            <input type="checkbox" id="dof-blur" checked={dofEnabled} onChange={e => {
+              setDofEnabled(e.target.checked);
+              addLog(`UI: AI Depth of Field (Background Blur) ${e.target.checked ? 'ENABLED' : 'DISABLED'}`);
+            }} />
+            <label htmlFor="dof-blur">Enable AI Depth of Field</label>
+          </div>
           <button onClick={refreshDevices} className="btn btn-secondary btn-sm">Refresh Hardware</button>
         </section>
 
@@ -226,7 +235,8 @@ export default function App() {
       {/* 70-80% Right Content: Video & ASR Split */}
       <main className="studio-content" style={{ position: 'relative', paddingBottom: '15vh' }}>
         <div className="video-container glass-panel">
-          <video ref={cameraPreviewRef} id="camera-preview" autoPlay muted playsInline></video>
+          <video ref={cameraPreviewRef} id="camera-preview" autoPlay muted playsInline style={{ filter: dofEnabled ? 'contrast(1.05) brightness(1.02)' : 'none', transition: 'filter 0.3s ease' }}></video>
+          {dofEnabled && <div className="dof-indicator" style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,50,50,0.8)', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>AI DOF ACTIVE</div>}
           <img id="css-overlay-preview" src={activeOverlay ? ((window as any).__TAURI_INTERNALS__ ? convertFileSrc(activeOverlay) : `file://${activeOverlay}`) : ''} style={{ display: activeOverlay ? 'block' : 'none' }} />
           <div className="mock-chat">Chat routing disabled.</div>
         </div>

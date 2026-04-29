@@ -32,8 +32,9 @@ async fn start_stream(
     mic_id: String,
     enable_recording: bool,
     overlay_path: String,
+    blur_background: bool,
 ) -> Result<(), String> {
-    ffmpeg::start(app, state, server_url, youtube_key, camera_id, mic_id, enable_recording, overlay_path).await
+    ffmpeg::start(app, state, server_url, youtube_key, camera_id, mic_id, enable_recording, overlay_path, blur_background).await
 }
 
 /// Stop the active broadcast session by killing the FFmpeg child process.

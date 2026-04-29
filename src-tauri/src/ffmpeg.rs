@@ -108,9 +108,10 @@ pub async fn get_devices() -> Result<AvDevices, String> {
 /// 1. (Optional) PNG overlay composited at top-right with 20px margin
 /// 2. Chat text overlay at top-left (reloaded from file every frame)
 /// 3. ASR caption overlay at bottom-center (reloaded from file every frame)
+/// 4. (Optional) Boxblur/Gblur applied prior to overlays if background blur is toggled
 ///
 /// Returns the filter string and whether a PNG overlay input is included.
-pub fn build_filter_graph(overlay_path: &str) -> (String, bool) {
+pub fn build_filter_graph(overlay_path: &str, blur_background: bool) -> (String, bool) {
     let drawtext_chat = "drawtext=textfile='/tmp/stagebadger_chat.txt'\
         :reload=1\
         :fontfile='/System/Library/Fonts/Helvetica.ttc'\
@@ -125,14 +126,26 @@ pub fn build_filter_graph(overlay_path: &str) -> (String, bool) {
         :x=(w-text_w)/2:y=h-th-20\
         :box=1:boxcolor=black@0.5";
 
+    let mut base_filter = if blur_background {
+        "[0:v]gblur=sigma=10:steps=2[v_blur];[v_blur]".to_string()
+    } else {
+        "[0:v]".to_string()
+    };
+
     if !overlay_path.is_empty() && std::path::Path::new(overlay_path).exists() {
         let filter = format!(
-            "[0:v][1:v]overlay=W-w-20:20[v1];[v1]{},{}[v_out]",
-            drawtext_chat, drawtext_asr
+            "{}[1:v]overlay=W-w-20:20[v1];[v1]{},{}[v_out]",
+            base_filter, drawtext_chat, drawtext_asr
         );
         (filter, true)
     } else {
-        let filter = format!("{},{}[v_out]", drawtext_chat, drawtext_asr);
+        // We ensure the filter graph takes base_filter directly and passes it along. 
+        // Note: For simple drawtext without overlay, it modifies to the implicitly passed stream unless named if not starting complex
+        let filter = if blur_background {
+            format!("{} {},{}[v_out]", base_filter, drawtext_chat, drawtext_asr)
+        } else {
+            format!("{},{}[v_out]", drawtext_chat, drawtext_asr)
+        };
         (filter, false)
     }
 }
@@ -148,6 +161,7 @@ pub fn build_ffmpeg_args(
     server_url: &str,
     key: &str,
     enable_recording: bool,
+    blur_background: bool,
 ) -> Vec<String> {
     let mut args = vec![
         "-hide_banner".to_string(),
@@ -161,7 +175,7 @@ pub fn build_ffmpeg_args(
         format!("{}:{}", cam, mic),
     ];
 
-    let (filter_complex, has_overlay) = build_filter_graph(overlay_path);
+    let (filter_complex, has_overlay) = build_filter_graph(overlay_path, blur_background);
 
     if has_overlay {
         args.push("-i".to_string());
@@ -237,6 +251,7 @@ pub async fn start(
     mic: String,
     enable_recording: bool,
     overlay_path: String,
+    blur_background: bool,
 ) -> Result<(), String> {
     let mut st = state.lock().await;
     if st.process.is_some() {
@@ -247,7 +262,7 @@ pub async fn start(
     let _ = fs::write("/tmp/stagebadger_chat.txt", "Live Chat Initializing...\n");
     let _ = fs::write("/tmp/stagebadger_asr.txt", "ASR Standby...");
 
-    let args = build_ffmpeg_args(&cam, &mic, &overlay_path, &server_url, &key, enable_recording);
+    let args = build_ffmpeg_args(&cam, &mic, &overlay_path, &server_url, &key, enable_recording, blur_background);
 
     let child = Command::new("ffmpeg")
         .args(&args)
@@ -322,7 +337,7 @@ mod tests {
 
     #[test]
     fn test_build_filter_graph_no_overlay() {
-        let (filter, has_overlay) = build_filter_graph("");
+        let (filter, has_overlay) = build_filter_graph("", false);
         assert!(!has_overlay);
         assert!(filter.contains("drawtext="));
         assert!(filter.ends_with("[v_out]"));
@@ -332,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_build_filter_graph_with_nonexistent_overlay() {
-        let (filter, has_overlay) = build_filter_graph("/tmp/nonexistent_file_xyz_123.png");
+        let (filter, has_overlay) = build_filter_graph("/tmp/nonexistent_file_xyz_123.png", false);
         assert!(!has_overlay);
         assert!(!filter.contains("overlay"));
     }
@@ -345,6 +360,7 @@ mod tests {
             "",
             "rtmp://a.rtmp.youtube.com/live2/",
             "test-key-123",
+            false,
             false,
         );
 
@@ -372,6 +388,7 @@ mod tests {
             "rtmp://a.rtmp.youtube.com/live2/",
             "test-key-123",
             true,
+            false,
         );
 
         // Should use tee muxer
@@ -389,7 +406,7 @@ mod tests {
 
     #[test]
     fn test_build_ffmpeg_args_input_format() {
-        let args = build_ffmpeg_args("0", "0", "", "rtmp://test/", "key", false);
+        let args = build_ffmpeg_args("0", "0", "", "rtmp://test/", "key", false, false);
 
         // Verify the AV input is formatted as "camera:mic"
         assert!(args.contains(&"0:0".to_string()));
@@ -397,7 +414,7 @@ mod tests {
 
     #[test]
     fn test_build_ffmpeg_args_encoding_params() {
-        let args = build_ffmpeg_args("0", "0", "", "rtmp://test/", "key", false);
+        let args = build_ffmpeg_args("0", "0", "", "rtmp://test/", "key", false, false);
 
         // Verify critical encoding parameters
         assert!(args.contains(&"3000k".to_string())); // bitrate
@@ -429,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_build_ffmpeg_args_map_contains_v_out() {
-        let args = build_ffmpeg_args("0", "0", "", "rtmp://test/", "key", false);
+        let args = build_ffmpeg_args("0", "0", "", "rtmp://test/", "key", false, false);
         assert!(args.contains(&"[v_out]".to_string()));
     }
 }
