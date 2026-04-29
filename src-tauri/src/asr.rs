@@ -102,6 +102,22 @@ pub fn spawn_native_asr_worker(app: tauri::AppHandle) {
         
         let err_fn = move |err| println!("CPAL error: {}", err);
         
+        let model_path = "/Volumes/MOE/models/ggml-tiny.en.bin";
+        let model_url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin";
+
+        // Bootstrap Check: Auto-download the GGML Weights if they don't natively exist!
+        if !std::path::Path::new(model_path).exists() {
+            println!("Bootstrapping: GGML missing! Downloading {} to {}...", model_url, model_path);
+            let result = tokio::runtime::Handle::current().block_on(async {
+                download_ggml_model(model_url, std::path::Path::new(model_path)).await
+            });
+            if let Err(e) = result {
+                println!("CRITICAL: ASR Tensor Download Failed! {}", e);
+                return;
+            }
+            println!("Success: ASR ggml-tiny weights securely pulled!");
+        }
+
         let stream = match config.sample_format() {
             cpal::SampleFormat::F32 => {
                 device.build_input_stream(
@@ -136,8 +152,13 @@ pub fn spawn_native_asr_worker(app: tauri::AppHandle) {
                     pcm_data = pcm_data.into_iter().step_by(3).collect();
                 }
                 
-                if let Ok(result) = run_whisper_inference("/Volumes/MOE/models/ggml-tiny.en.bin", &pcm_data) {
-                    let _ = app.emit("asr_stream", result);
+                match run_whisper_inference(model_path, &pcm_data) {
+                    Ok(result) => {
+                        let _ = app.emit("asr_stream", result);
+                    },
+                    Err(e) => {
+                        println!("ASR Inference Exception Dropped: {}", e);
+                    }
                 }
             }
         }

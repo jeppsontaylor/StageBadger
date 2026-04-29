@@ -16,6 +16,10 @@
   <a href="#license">License</a>
 </p>
 
+<p align="center">
+  <img src="src-tauri/icons/screenshot.png" alt="StageBadger Native UI">
+</p>
+
 ---
 
 ## Mission

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 
 interface AsrToken {
@@ -38,15 +38,33 @@ export default function App() {
   const [tokensMap, setTokensMap] = useState<{ id: number, tokens: React.ReactNode, model: string }[]>([]);
   const tokenCounter = useRef(0);
   const asrLogRef = useRef<HTMLDivElement>(null);
+  const sysLogRef = useRef<HTMLDivElement>(null);
   const cameraPreviewRef = useRef<HTMLVideoElement>(null);
+
+  // System Logs Hook
+  const [systemLogs, setSystemLogs] = useState<{ id: number; time: string; msg: string }[]>([]);
+  const logCounter = useRef(0);
+  
+  const addLog = (msg: string) => {
+    const time = new Date().toLocaleTimeString();
+    setSystemLogs(prev => [...prev, { id: logCounter.current++, time, msg }]);
+    if (sysLogRef.current) {
+      setTimeout(() => {
+        if (sysLogRef.current) sysLogRef.current.scrollTop = sysLogRef.current.scrollHeight;
+      }, 50);
+    }
+  };
 
   // Initialize Hardware
   const refreshDevices = async () => {
     try {
+      addLog("System: Refreshing physical AV interfaces...");
       const devices = await invoke<{ video: string[], audio: string[] }>('get_av_devices');
       setCameras(devices.video);
       setMics(devices.audio);
+      addLog(`System: Detected ${devices.video.length} cameras, ${devices.audio.length} microphones`);
     } catch (err) {
+      addLog(`Error: Failed refreshing AV devices - ${err}`);
       console.error('Error refreshing AV devices', err);
     }
   };
@@ -102,6 +120,7 @@ export default function App() {
     }
     
     setStatus('INITIALIZING');
+    addLog(`System: Attempting RTMP bound route to: ${serverUrl}`);
     
     try {
       await invoke("start_stream", {
@@ -114,7 +133,9 @@ export default function App() {
       });
       setIsLive(true);
       setStatus('LIVE');
+      addLog(`Success: Hardware Audio Pipeline and FFmpeg streaming LIVE.`);
     } catch (err) {
+      addLog(`Error: Stream startup failed: ${err}`);
       alert("Failed to start stream: " + err);
       setStatus('READY');
     }
@@ -122,10 +143,13 @@ export default function App() {
 
   const handleStop = async () => {
     try {
+      addLog(`System: Issuing Stop Broadcast hook...`);
       await invoke("stop_stream");
       setIsLive(false);
       setStatus('READY');
+      addLog(`Success: Broadcast gracefully terminated.`);
     } catch (err) {
+      addLog(`Error: Failed dropping broadcast - ${err}`);
       alert("Error stopping: " + err);
     }
   };
@@ -182,7 +206,10 @@ export default function App() {
               <div 
                 key={idx} 
                 className={`gallery-item ${activeOverlay === o.path ? 'active' : ''}`}
-                onClick={() => setActiveOverlay(o.path)}
+                onClick={() => {
+                  addLog(`UI: Swapping Overlay Graphic to [${o.name}]`);
+                  setActiveOverlay(o.path);
+                }}
               >
                 <span className="title">{o.name}</span>
               </div>
@@ -197,10 +224,10 @@ export default function App() {
       </aside>
 
       {/* 70-80% Right Content: Video & ASR Split */}
-      <main className="studio-content">
+      <main className="studio-content" style={{ position: 'relative', paddingBottom: '15vh' }}>
         <div className="video-container glass-panel">
           <video ref={cameraPreviewRef} id="camera-preview" autoPlay muted playsInline></video>
-          <img id="css-overlay-preview" src={activeOverlay ? `file://${activeOverlay}` : ''} style={{ display: activeOverlay ? 'block' : 'none' }} />
+          <img id="css-overlay-preview" src={activeOverlay ? convertFileSrc(activeOverlay) : ''} style={{ display: activeOverlay ? 'block' : 'none' }} />
           <div className="mock-chat">Chat routing disabled.</div>
         </div>
 
@@ -221,6 +248,11 @@ export default function App() {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="telemetry-log glass-panel" ref={sysLogRef} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '15vh', overflowY: 'auto', background: 'rgba(0,0,0,0.8)', padding: '0.5rem', fontSize: '0.75rem', fontFamily: 'monospace', zIndex: 100, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ color: 'var(--success)' }}>-- 🔴 SYSTEM TELEMETRY ACTIVE --</div>
+          {systemLogs.map(log => <div key={log.id}><span style={{ color: '#888' }}>[{log.time}]</span> {log.msg}</div>)}
         </div>
       </main>
     </div>

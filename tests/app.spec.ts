@@ -51,6 +51,10 @@ test.describe('StageBadger Studio Behavioral User Flows', () => {
     
     // Assert it snaps back to READY when failing
     await expect(badge).toHaveText('READY');
+
+    // Generate Final UI Screenshot for Git Documentation
+    await page.waitForTimeout(500); // Allow DOM animations to settle
+    await page.screenshot({ path: 'src-tauri/icons/screenshot.png', fullPage: true });
   });
 
 });
