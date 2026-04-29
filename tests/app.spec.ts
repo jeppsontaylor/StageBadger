@@ -54,7 +54,7 @@ test.describe('StageBadger Studio Behavioral User Flows', () => {
 
     // Generate Final UI Screenshot for Git Documentation
     await page.waitForTimeout(500); // Allow DOM animations to settle
-    await page.screenshot({ path: 'src-tauri/icons/screenshot.png', fullPage: true });
+    await page.screenshot({ path: 'assets/screenshot.png', fullPage: true });
   });
 
 });

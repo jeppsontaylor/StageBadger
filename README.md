@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="src-tauri/icons/screenshot.png" alt="StageBadger Native UI">
+  <img src="assets/screenshot.png" alt="StageBadger Native UI">
 </p>
 
 ---

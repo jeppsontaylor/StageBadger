@@ -227,7 +227,7 @@ export default function App() {
       <main className="studio-content" style={{ position: 'relative', paddingBottom: '15vh' }}>
         <div className="video-container glass-panel">
           <video ref={cameraPreviewRef} id="camera-preview" autoPlay muted playsInline></video>
-          <img id="css-overlay-preview" src={activeOverlay ? convertFileSrc(activeOverlay) : ''} style={{ display: activeOverlay ? 'block' : 'none' }} />
+          <img id="css-overlay-preview" src={activeOverlay ? ((window as any).__TAURI_INTERNALS__ ? convertFileSrc(activeOverlay) : `file://${activeOverlay}`) : ''} style={{ display: activeOverlay ? 'block' : 'none' }} />
           <div className="mock-chat">Chat routing disabled.</div>
         </div>
 
