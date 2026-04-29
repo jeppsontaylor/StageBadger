@@ -1,0 +1,31 @@
+[package]
+name = "stagebadger"
+version = "0.1.0"
+description = "StageBadger Broadcast App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "stagebadger_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1.52.1", features = ["full"] }
+cpal = "0.17.3"
+hound = "3.5.1"
+whisper-rs = "0.16.0"
+reqwest = { version = "0.13.3", features = ["rustls", "stream"] }
+futures-util = "0.3.32"
+
