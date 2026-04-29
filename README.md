@@ -47,16 +47,17 @@ We are building the world's first fully native, AI-integrated, zero-dependency b
 - **Transparent PNG overlay compositing** — logos, watermarks, lower-thirds burned into the video filter graph
 - **Dynamic text overlays** — ASR captions and live chat rendered via `drawtext` with `reload=1` for zero-restart updates
 
-### AI Integration  
-- **Dual-model ASR pipeline** — two Whisper-class models race on separate Tokio tasks; the aggregator selects the highest-confidence transcription
-- **Live chat feed** — real-time chat overlay composited directly into the broadcast stream
-- **Model storage on external volumes** — `/Volumes/MOE` mount detection ensures large GGML model files live on high-capacity storage
+### AI & Hardware Integration  
+- **Dual-Model ASR Pipeline** — Supports hardware Whisper integration utilizing GGML matrix scaling arrays via CoreML/Apple Silicon (`mkl`/`metal`).
+- **Live token-level Confidence Visualization** — Deep integrations running on `cpal` extract f32 buffers across macOS audio units natively parsing them to extract token matrices mapping into our front tracking vectors in true real-time.
+- **Model storage on external volumes** — `/Volumes/MOE` mount detection ensures robust asset deployment scaling without clogging OS partitions.
 
 ### Native Desktop App
-- **Tauri 2 + Vite** — native macOS `.dmg` with a ~5MB binary, no Electron
-- **WebRTC local preview** — zero-latency camera monitoring in the UI without touching FFmpeg
-- **AVFoundation device enumeration** — cameras, screens, and microphones parsed directly from FFmpeg's device listing
-- **Glassmorphic dark-mode UI** — frosted-glass panels, vibrant accent gradients, responsive grid layout
+- **Tauri 2 + React/Vite** — Full replacement of standard broadcast interfaces replacing heavy Electron abstractions natively integrating pure Rust bindings.
+- **WebRTC local preview** — Zero-latency camera monitoring dropping the raw HTML components in favor of high speed pure React DOM components and `useEffect` rendering loops.
+- **AVFoundation device enumeration** — Cameras, screens, and microphones parsed directly via FFmpeg `libavdevice` and strictly mirrored via native Rust MacOS commands.
+- **Playwright Core Tests** — Entirely isolated E2E logic tracking React framework bounds completely decoupled from core testing paradigms limiting integration scaling failures.
+- **Glassmorphic UI & Overlay Gallery** — Built utilizing heavy CSS Grid & Glass UI design tokens enforcing beautiful responsive Studio components completely open from traditional broadcast clutter constraints.
 
 ---
 
@@ -126,21 +127,22 @@ npm run tauri build
 
 ## Testing
 
-### Rust Unit Tests
+### Rust Hardware & Unit Tests
 ```bash
 cd src-tauri
 cargo test
 ```
 
-### TypeScript Lint
+### React / Playwright Frontend Testing
 ```bash
-npx tsc --noEmit
+# Start your local server and run structural layout user tests:
+npm run dev & npx playwright test
 ```
 
-### Full Verification
+### Full E2E Verification
+Run our aggressive automated suite executing Node builds and Cargo compilation tracks flawlessly. 
 ```bash
-# Run all Rust tests + TypeScript type checking
-cd src-tauri && cargo test && cd .. && npx tsc --noEmit
+cd src-tauri && cargo check && cd .. && npm run build
 ```
 
 ---

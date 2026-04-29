@@ -1,70 +1,29 @@
 # Contributing to StageBadger
 
-Thank you for contributing to the open-source future of live broadcasting.
+Welcome to the StageBadger open-source project! We are building a truly modern, ultra-high-speed, 100% Rust & React broadcast alternative replacing electron-bloated OBS/StreamYard tools natively on macOS limits.
 
-## Development Setup
+## Setting Up Locally
 
-### Prerequisites
-- macOS with Apple Silicon (required for AVFoundation device access)
-- Rust 1.75+ (`rustup update stable`)
-- Node.js 18+ with npm
-- FFmpeg 7+ (`brew install ffmpeg`)
+1. Fork the repo and clone it locally.
+2. Make sure you possess:
+   - **Rust 1.75+**
+   - **Node.js 18+**
+   - **FFmpeg 7+** (via Homebrew natively bound into `$PATH`)
+3. `npm install` inside the root tree natively loading all dependencies.
+4. Run `npm run tauri dev` to invoke our aggressive Vite hot-reload layout.
 
-### First Run
-```bash
-git clone git@github.com:jeppsontaylor/StageBadger.git
-cd StageBadger
-npm install
-npm run tauri dev
-```
+## Contribution Guidelines
 
-### Running Tests
-```bash
-# Rust unit tests
-cd src-tauri && cargo test
+1. **Test Driven Submissions:** You MUST write comprehensive coverage verifying features function securely.
+   - For any React additions, run and assert `npx playwright test`. 
+   - For Core Hardware bindings (`src-tauri/**/*.rs`), append assertions inside `src-tauri/tests`. Run `cd src-tauri && cargo test`.
+2. **Apple Silicon Hardware Bounds:** We are prioritizing GGML native model weights via MKL/Metal. Avoid importing raw abstractions lacking Apple CoreML compatibility. 
+3. **Rust Is Required For Media Payload Parsing:** Avoid placing any backend dependencies or file logic in the React Webview context. The frontend purely holds Display capabilities via Tauri IPC.
 
-# TypeScript type checking
-npx tsc --noEmit
-```
+## Push Workflow
 
----
+1. Perform a `git pull origin main` and resolve collisions securely.
+2. Open a Pull Request targeting `main`.
+3. Provide robust execution logs or screenshots if augmenting the Studio Grid UI.
 
-## For AI Agents
-
-If you are an AI coding agent working on this codebase:
-
-1. **Start by reading `ARCHITECTURE.md`.** It contains the complete module reference, data flow diagrams, and design principles.
-
-2. **Module naming is intentional.** `ffmpeg.rs` = FFmpeg supervision. `asr.rs` = speech recognition. `chat.rs` = chat integration. `lib.rs` = Tauri command registration.
-
-3. **Every public function must have a doc comment.** Use `///` doc comments on all `pub fn` declarations.
-
-4. **Every module must have tests.** Place tests in a `#[cfg(test)] mod tests { ... }` block at the bottom of each `.rs` file.
-
-5. **Run `cargo test` before proposing any change.** All tests must pass.
-
-6. **The overlay protocol is file-based.** ASR and chat data flows through `/tmp/*.txt` files. FFmpeg reads them via `drawtext reload=1`. Do not introduce shared memory or IPC sockets for overlay data without architectural review.
-
----
-
-## Code Style
-
-- **Rust:** Follow `rustfmt` defaults. Run `cargo fmt` before committing.
-- **TypeScript:** Follow the existing `tsconfig.json` strict settings.
-- **CSS:** Use CSS custom properties defined in `:root`. No inline styles except for truly dynamic values.
-- **Commits:** Use conventional commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`
-
----
-
-## Pull Request Guidelines
-
-1. One feature or fix per PR.
-2. Include tests for any new Rust code.
-3. Update `ARCHITECTURE.md` if you add a new module or change data flow.
-4. Ensure `cargo test` and `npx tsc --noEmit` pass.
-
----
-
-## License
-
-By contributing, you agree that your contributions will be dual-licensed under MIT OR Apache-2.0.
+_All submissions implicitly agree to release modifications under the strict bound terms of the `LICENSE` accompanying this open repository structure._
