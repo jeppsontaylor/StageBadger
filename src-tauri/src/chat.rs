@@ -1,159 +1,145 @@
-//! # Live Chat Feed
+//! # YouTube Live Chat Formatting
 //!
-//! This module manages the live chat overlay content. It spawns a background Tokio task
-//! that maintains a rolling buffer of chat messages and writes them to the overlay file.
-//!
-//! ## Current Status: Mock Implementation
-//!
-//! The current implementation generates synthetic chat messages for testing the overlay pipeline.
-//! To integrate real YouTube Live chat:
-//!
-//! 1. Replace the synthetic message generator with YouTube Data API v3 `liveChatMessages.list` polling
-//! 2. The rolling buffer and file-write logic remain unchanged
-//!
-//! ## File Protocol
-//!
-//! The chat worker writes to `/tmp/stagebadger_chat.txt`. FFmpeg reads this file
-//! every frame via `drawtext reload=1`.
+//! The runtime chat source is YouTube Live Chat. The stream worker favors
+//! `liveChatMessages.streamList` when OAuth/API support is available and can
+//! fall back to polling `liveChatMessages.list` using YouTube's advertised
+//! `pollingIntervalMillis`.
 
+use crate::types::ChatMessage;
 use std::fs::OpenOptions;
 use std::io::Write;
-use tokio::time::{sleep, Duration};
 
-/// Maximum number of chat messages visible in the overlay at any time.
 pub const MAX_VISIBLE_MESSAGES: usize = 10;
 
-/// Format a synthetic chat message.
-///
-/// Generates a mock username and message for testing.
-pub fn format_mock_message(index: usize) -> String {
-    let usernames = ["RustFan", "StreamerPro", "CodeNinja", "M4Gang", "BadgerLover", "DevOps42", "AIEnthusiast"];
-    let messages = [
-        "🔥 This is amazing!",
-        "Hello from the chat!",
-        "StageBadger is the future",
-        "Rust + FFmpeg = 🚀",
-        "How is the latency?",
-        "Love the overlay feature",
-        "AI captions are wild",
-        "First time here, hi all!",
-        "Can you show the code?",
-        "This app is so fast",
-    ];
-
-    let username = usernames[index % usernames.len()];
-    let message = messages[index % messages.len()];
-    format!("{}: {}", username, message)
+pub fn initialize_chat_overlay() {
+    let _ = write_chat_overlay(&[]);
 }
 
-/// Format a chat history buffer for overlay display.
-///
-/// Joins messages with newlines, suitable for FFmpeg's `drawtext` filter.
-pub fn format_chat_overlay(messages: &[String]) -> String {
-    messages.join("\n")
+pub fn stream_list_url(live_chat_id: &str) -> String {
+    format!(
+        "https://www.googleapis.com/youtube/v3/liveChat/messages:stream?part=snippet,authorDetails&liveChatId={}",
+        live_chat_id
+    )
 }
 
-/// Spawn the chat feed background worker.
-///
-/// Creates a Tokio task that:
-/// 1. Generates a new mock chat message every 3 seconds
-/// 2. Maintains a rolling buffer of the last [`MAX_VISIBLE_MESSAGES`] messages
-/// 3. Writes the formatted buffer to `/tmp/stagebadger_chat.txt`
-pub fn spawn_chat_worker() {
-    tokio::spawn(async move {
-        let mut i = 0usize;
-        let mut chat_history: Vec<String> = vec!["[StageBadger] Live Chat Connected".to_string()];
-
-        loop {
-            sleep(Duration::from_secs(3)).await;
-            i += 1;
-            chat_history.push(format_mock_message(i));
-
-            if chat_history.len() > MAX_VISIBLE_MESSAGES {
-                chat_history.remove(0);
-            }
-
-            let display = format_chat_overlay(&chat_history);
-
-            if let Ok(mut file) = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open("/tmp/stagebadger_chat.txt")
-            {
-                let _ = writeln!(file, "{}", display);
-            }
-        }
-    });
+pub fn poll_list_url(live_chat_id: &str, page_token: Option<&str>) -> String {
+    let mut url = format!(
+        "https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet,authorDetails&liveChatId={}",
+        live_chat_id
+    );
+    if let Some(token) = page_token {
+        url.push_str("&pageToken=");
+        url.push_str(token);
+    }
+    url
 }
 
-// ============================================================================
-// Tests
-// ============================================================================
+pub fn format_chat_message(message: &ChatMessage) -> String {
+    let role = message
+        .role
+        .as_ref()
+        .map(|role| format!(" [{}]", role))
+        .unwrap_or_default();
+    let super_chat = message
+        .amount_display
+        .as_ref()
+        .filter(|_| message.is_super_chat)
+        .map(|amount| format!(" {}", amount))
+        .unwrap_or_default();
+    format!("{}{}{}: {}", message.author, role, super_chat, message.message)
+}
+
+pub fn format_chat_overlay(messages: &[ChatMessage]) -> String {
+    messages
+        .iter()
+        .rev()
+        .take(MAX_VISIBLE_MESSAGES)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .map(|message| format_chat_message(message))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+pub fn write_chat_overlay(messages: &[ChatMessage]) -> Result<(), String> {
+    let display = if messages.is_empty() {
+        "YouTube chat disconnected".to_string()
+    } else {
+        format_chat_overlay(messages)
+    };
+
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open("/tmp/stagebadger_chat.txt")
+        .map_err(|e| e.to_string())?;
+    writeln!(file, "{}", display).map_err(|e| e.to_string())
+}
+
+pub fn parse_polling_interval_millis(value: Option<u64>) -> std::time::Duration {
+    std::time::Duration::from_millis(value.unwrap_or(2_000).clamp(500, 30_000))
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_format_mock_message_not_empty() {
-        for i in 0..20 {
-            let msg = format_mock_message(i);
-            assert!(!msg.is_empty());
-            assert!(msg.contains(':'), "Message should contain ':' separator");
+    fn sample_message(id: &str, text: &str) -> ChatMessage {
+        ChatMessage {
+            id: id.to_string(),
+            author: "Taylor".to_string(),
+            message: text.to_string(),
+            role: Some("member".to_string()),
+            published_at: None,
+            amount_display: None,
+            is_super_chat: false,
         }
     }
 
     #[test]
-    fn test_format_mock_message_deterministic() {
-        let msg_a = format_mock_message(5);
-        let msg_b = format_mock_message(5);
-        assert_eq!(msg_a, msg_b, "Same index should produce same message");
+    fn test_format_chat_message_with_role() {
+        let msg = sample_message("1", "Hello chat");
+        assert_eq!(format_chat_message(&msg), "Taylor [member]: Hello chat");
     }
 
     #[test]
-    fn test_format_mock_message_varies() {
-        let msg_0 = format_mock_message(0);
-        let msg_1 = format_mock_message(1);
-        assert_ne!(msg_0, msg_1, "Different indices should produce different messages");
+    fn test_format_chat_message_with_super_chat() {
+        let mut msg = sample_message("1", "Great stream");
+        msg.is_super_chat = true;
+        msg.amount_display = Some("$20.00".to_string());
+        assert_eq!(format_chat_message(&msg), "Taylor [member] $20.00: Great stream");
     }
 
     #[test]
-    fn test_format_chat_overlay_empty() {
-        let messages: Vec<String> = vec![];
-        let result = format_chat_overlay(&messages);
-        assert_eq!(result, "");
+    fn test_format_chat_overlay_limits_visible_messages() {
+        let messages: Vec<ChatMessage> = (0..25)
+            .map(|idx| sample_message(&idx.to_string(), &format!("message {}", idx)))
+            .collect();
+        let overlay = format_chat_overlay(&messages);
+        assert_eq!(overlay.lines().count(), MAX_VISIBLE_MESSAGES);
+        assert!(overlay.contains("message 24"));
+        assert!(!overlay.contains("message 0"));
     }
 
     #[test]
-    fn test_format_chat_overlay_single() {
-        let messages = vec!["Hello!".to_string()];
-        let result = format_chat_overlay(&messages);
-        assert_eq!(result, "Hello!");
+    fn test_stream_list_url_uses_live_chat_id() {
+        let url = stream_list_url("abc123");
+        assert!(url.contains("liveChatId=abc123"));
+        assert!(url.contains("messages:stream"));
     }
 
     #[test]
-    fn test_format_chat_overlay_multiple() {
-        let messages = vec!["Line 1".to_string(), "Line 2".to_string(), "Line 3".to_string()];
-        let result = format_chat_overlay(&messages);
-        assert_eq!(result, "Line 1\nLine 2\nLine 3");
+    fn test_poll_list_url_includes_page_token() {
+        let url = poll_list_url("abc123", Some("next"));
+        assert!(url.contains("pageToken=next"));
     }
 
     #[test]
-    fn test_max_visible_messages_reasonable() {
-        assert!(MAX_VISIBLE_MESSAGES > 0);
-        assert!(MAX_VISIBLE_MESSAGES <= 50, "Too many visible messages would clutter the overlay");
-    }
-
-    #[test]
-    fn test_chat_buffer_respects_max_size() {
-        let mut buffer: Vec<String> = Vec::new();
-        for i in 0..25 {
-            buffer.push(format_mock_message(i));
-            if buffer.len() > MAX_VISIBLE_MESSAGES {
-                buffer.remove(0);
-            }
-        }
-        assert_eq!(buffer.len(), MAX_VISIBLE_MESSAGES);
+    fn test_polling_interval_bounds() {
+        assert_eq!(parse_polling_interval_millis(Some(100)).as_millis(), 500);
+        assert_eq!(parse_polling_interval_millis(Some(60_000)).as_millis(), 30_000);
+        assert_eq!(parse_polling_interval_millis(None).as_millis(), 2_000);
     }
 }

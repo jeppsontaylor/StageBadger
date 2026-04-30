@@ -1,6 +1,4 @@
-<p align="center">
-  <strong>🦡 StageBadger</strong>
-</p>
+<img src="assets/stagebadgerheader.png" width="100%" alt="StageBadger">
 
 <p align="center">
   <em>The 100% Rust + FFmpeg open-source replacement for StreamYard, OBS, and every cloud-dependent broadcast tool.</em>

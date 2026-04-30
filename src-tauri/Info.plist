@@ -6,5 +6,7 @@
   <string>StageBadger requires access to your camera for live broadcasting and previews.</string>
   <key>NSMicrophoneUsageDescription</key>
   <string>StageBadger requires access to your microphone for broadcasting audio and real-time AI transcription.</string>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>StageBadger requires screen recording access to preview and broadcast your desktop.</string>
 </dict>
 </plist>
